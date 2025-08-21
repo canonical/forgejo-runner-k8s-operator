@@ -5,7 +5,6 @@
 import dataclasses
 import logging
 import ops
-from typing import Optional
 
 from forgejo_runner_handler import generate_config
 
@@ -70,7 +69,7 @@ class ForgejoRunnerK8SOperatorCharm(ops.CharmBase):
         event.add_status(ops.ActiveStatus())
 
     @property
-    def _forgejo_runner_version(self) -> Optional[str]:
+    def _forgejo_runner_version(self) -> str | None:
         """Returns the version of Forgejo Runner.
 
         Returns:
@@ -138,8 +137,14 @@ class ForgejoRunnerK8SOperatorCharm(ops.CharmBase):
                 cfg,
                 user_id=1000,
                 user='runner',
-                group_id=1000
+                group_id=1000,
             )
+
+            if config.forgejo_url and config.registration_token:
+                logger.info(f"Registering runner with {config.forgejo_url}")
+                resp = self._register_runner(config.forgejo_url, config.registration_token, config.labels)
+                if resp:
+                    logger.info(f"Runner registered with {resp}")
 
             self.container.add_layer('forgejo', self._get_pebble_layer(), combine=True)
             logger.info("Added updated layer 'forgejo' to Pebble plan")
@@ -157,10 +162,10 @@ class ForgejoRunnerK8SOperatorCharm(ops.CharmBase):
             logger.info('Unable to connect to Pebble: %s', e)
 
 
-    def _register_runner(self, url: str, token: str, labels: str) -> bool:
+    def _register_runner(self, url: str, token: str, labels: str) -> str | None:
         """Register the runner against the Forgejo server."""
         if not self.container.can_connect():
-            return False
+            return None
         registration_output, _ = self.container.exec([
             FORGEJO_CLI,
             "create-runner-file",
@@ -171,7 +176,7 @@ class ForgejoRunnerK8SOperatorCharm(ops.CharmBase):
             "--no-interactive",
         ]).wait_output()
         logger.info(registration_output)
-        return True
+        return registration_output
 
 
 
