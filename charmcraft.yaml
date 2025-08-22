@@ -52,7 +52,7 @@ platforms:
 
 
 containers:
-  forgejo:
+  forgejo-runner:
     resource: forgejo-runner-image
     mounts:
       - storage: data
@@ -95,12 +95,12 @@ config:
       type: string
     labels:
       description: |
-        Comma separated strings to define label(s) of the runner.   
+        Comma separated strings to define label(s) of the runner.
       default: "docker"      
       type: string
     forgejo-url:
       description: |
-        URL of the Forgejo server (Future charm relation will overwrite this).         
+        URL of the Forgejo server (Future charm relation will overwrite this).
       type: string
 
 

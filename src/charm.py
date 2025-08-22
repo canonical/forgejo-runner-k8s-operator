@@ -12,7 +12,7 @@ from forgejo_runner_handler import generate_config
 logger = logging.getLogger(__name__)
 
 SERVICE_NAME = "forgejo-runner"  # Name of Pebble service that runs in the workload container.
-FORGEJO_CLI = "/usr/local/bin/forgejo-runner"
+FORGEJO_CLI = "/bin/forgejo-runner"
 CUSTOM_FORGEJO_RUNNER_CONFIG = "/etc/forgejo-runner.yaml"
 
 
@@ -22,9 +22,9 @@ class ForgejoRunnerConfig:
 
     log_level: str = "info"
     job_log_level: str = "info"
-    registration_token: str
+    registration_token: str = ""
     labels: str = "docker"
-    forgejo_url: str
+    forgejo_url: str = ""
 
     def __post_init__(self):
         """Configuration validation."""
@@ -37,7 +37,7 @@ class ForgejoRunnerK8SOperatorCharm(ops.CharmBase):
     def __init__(self, framework: ops.Framework) -> None:
         super().__init__(framework)
 
-        framework.observe(self.on.forgejo_pebble_ready, self._on_pebble_ready)
+        framework.observe(self.on.forgejo_runner_pebble_ready, self._on_pebble_ready)
         framework.observe(self.on.config_changed, self._on_config_changed)
         framework.observe(self.on.collect_unit_status, self._on_collect_status)
 
@@ -132,11 +132,17 @@ class ForgejoRunnerK8SOperatorCharm(ops.CharmBase):
                 log_level=config.log_level,
                 job_log_level=config.job_log_level,
             )
+            # self.container.push(
+            #     CUSTOM_FORGEJO_RUNNER_CONFIG,
+            #     cfg,
+            #     user_id=1000,
+            #     user='runner',
+            #     group_id=1000,
+            # )
             self.container.push(
                 CUSTOM_FORGEJO_RUNNER_CONFIG,
                 cfg,
                 user_id=1000,
-                user='runner',
                 group_id=1000,
             )
 
@@ -144,10 +150,8 @@ class ForgejoRunnerK8SOperatorCharm(ops.CharmBase):
                 logger.info(f"Registering runner with {config.forgejo_url}")
                 resp = self._register_runner(config.forgejo_url, config.registration_token, config.labels)
                 if resp:
-                    logger.info(f"Runner registered with {resp}")
-
-            self.container.add_layer('forgejo', self._get_pebble_layer(), combine=True)
-            logger.info("Added updated layer 'forgejo' to Pebble plan")
+                    self.container.add_layer('forgejo', self._get_pebble_layer(), combine=True)
+                    logger.info("Added updated layer 'forgejo' to Pebble plan")
 
             # Tell Pebble to incorporate the changes, including restarting the
             # service if required.
@@ -162,13 +166,13 @@ class ForgejoRunnerK8SOperatorCharm(ops.CharmBase):
             logger.info('Unable to connect to Pebble: %s', e)
 
 
-    def _register_runner(self, url: str, token: str, labels: str) -> str | None:
+    def _register_runner(self, url: str, token: str, labels: str) -> bool:
         """Register the runner against the Forgejo server."""
         if not self.container.can_connect():
-            return None
+            return False
         registration_output, _ = self.container.exec([
             FORGEJO_CLI,
-            "create-runner-file",
+            "register",
             "--instance", url,
             "--token", token,
             "--labels", labels,
@@ -176,7 +180,7 @@ class ForgejoRunnerK8SOperatorCharm(ops.CharmBase):
             "--no-interactive",
         ]).wait_output()
         logger.info(registration_output)
-        return registration_output
+        return "Runner registered successfully" in registration_output
 
 
 

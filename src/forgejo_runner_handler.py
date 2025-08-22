@@ -17,7 +17,7 @@ def generate_config(
     job_log_level: str = "info",
 ) -> str:
     env = Environment(loader=FileSystemLoader("."))
-    template = env.get_template("./templates/config.yaml.j2")
+    template = env.get_template("./src/templates/config.yaml.j2")
         
     return template.render({
         "log_level": log_level,
