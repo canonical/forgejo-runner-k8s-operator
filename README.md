@@ -8,7 +8,7 @@ Avoid using this README file for information that is maintained or published els
 Use links instead.
 -->
 
-# forgejo-runner-k8s-operator
+# (ABANDONED) forgejo-runner-k8s-operator
 
 Charmhub package name: operator-template
 More information: https://charmhub.io/forgejo-runner-k8s-operator
